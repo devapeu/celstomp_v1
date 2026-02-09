@@ -21,16 +21,22 @@ https://ginyo.space/celstomp/
 
 - **Canvas**: 16:9 ratio, zoom/pan with scroll or pinch
 - **Timeline**: Frame-by-frame grid, drag cels, multi-select
-- **Tools**: Brush, Eraser, Fill Brush, Fill Eraser, Lasso
-- **Layers**: LINE, SHADE, COLOR, FILL, PAPER - with swatches and reordering
+- **Tools**: Brush, Eraser, Fill Brush, Fill Eraser, Lasso, Rect Select, Eyedropper
+- **Layers**: LINE, SHADE, COLOR, FILL, PAPER - with swatches and reordering. Solo layer mode available.
 - **Onion Skin**: Preview prev/next frames (adjustable colors/opacity)
+- **Palette**: Save/Load palettes, Import/Export JSON support
+- **Shortcuts**: Comprehensive keyboard shortcuts (Press `?` in app for list)
+- **Safety**: Unsaved changes protection
 - **Export**: MP4 video or image sequence
 - **Save/Load**: Project files in JSON format
 
-### Shortcuts
-- Tools: 1-6
-- Prev/Next Cel: Up/Down or Q/W
-- Prev/Next Frame: Left/Right or E/R
+### Key Shortcuts
+- **Tools**: 1-8
+- **Navigation**: Arrows, Q/W (Cel), E/R (Frame)
+- **Playback**: Space
+- **Edit**: Ctrl+Z (Undo), Ctrl+Y (Redo), Del (Clear)
+- **Brush**: [ / ] (Size), Shift+Drag (Straight line), Alt (Eyedropper)
+- **View**: ? (Cheatsheet), O (Onion), F (Fill)
 
 ## Setup
 
