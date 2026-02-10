@@ -1346,10 +1346,44 @@
         let _brushPrevLastEvt = null;
         let _brushPrevRAF = 0;
         let _brushPrevLastXY = null;
+        let _brushPrevInnerCanvas = null;
+        function brushShapeForType(kind) {
+            const t = String(kind || "circle");
+            if (t === "square" || t === "oval" || t === "oval-vertical" || t === "circle") return t;
+            return "circle";
+        }
+        function brushShapeDimensions(shape, size) {
+            const s = Math.max(1, Math.round(size || 1));
+            const slim = Math.max(1, Math.round(s / 3));
+            switch (brushShapeForType(shape)) {
+                case "oval":
+                    return {
+                        w: s,
+                        h: slim
+                    };
+                case "oval-vertical":
+                    return {
+                        w: slim,
+                        h: s
+                    };
+                default:
+                    return {
+                        w: s,
+                        h: s
+                    };
+            }
+        }
         function initBrushCursorPreview(inputCanvasEl) {
             _brushPrevCanvas = inputCanvasEl;
             _brushPrevEl = document.getElementById("brushCursorPreview");
             if (!_brushPrevCanvas || !_brushPrevEl) return;
+            _brushPrevInnerCanvas = document.createElement("canvas");
+            _brushPrevInnerCanvas.id = "brushCursorPreviewCanvas";
+            _brushPrevInnerCanvas.style.width = "100%";
+            _brushPrevInnerCanvas.style.height = "100%";
+            _brushPrevInnerCanvas.style.display = "block";
+            _brushPrevInnerCanvas.style.pointerEvents = "none";
+            _brushPrevEl.replaceChildren(_brushPrevInnerCanvas);
             let hovering = false;
             let down = false;
             const show = () => {
@@ -1436,19 +1470,53 @@
             const cx = pt.x;
             const cy = pt.y;
             const z = typeof zoom === "number" && isFinite(zoom) ? zoom : 1;
-            let diameterCssPx;
+            let widthCssPx;
+            let heightCssPx;
             if (isSimple) {
-                diameterCssPx = 4;
+                widthCssPx = 4;
+                heightCssPx = 4;
             } else {
                 const sizeContentPx = Math.max(1, getBrushSizeForPreview(isEraser ? "eraser" : "brush"));
-                diameterCssPx = Math.max(2, sizeContentPx * z);
+                if (isBrush) {
+                    const shape = brushShapeForType(typeof brushType !== "undefined" ? brushType : "circle");
+                    const dim = brushShapeDimensions(shape, sizeContentPx);
+                    widthCssPx = Math.max(2, dim.w * z);
+                    heightCssPx = Math.max(2, dim.h * z);
+                } else {
+                    widthCssPx = Math.max(2, sizeContentPx * z);
+                    heightCssPx = widthCssPx;
+                }
             }
             _brushPrevEl.classList.toggle("simple", !!isSimple);
             _brushPrevEl.classList.toggle("eraser", !!isEraser && !isSimple);
+            if (isBrush && !isSimple) {
+                _brushPrevEl.style.border = "none";
+                _brushPrevEl.style.boxShadow = "none";
+                if (_brushPrevInnerCanvas) _brushPrevInnerCanvas.style.display = "block";
+            } else {
+                _brushPrevEl.style.border = "";
+                _brushPrevEl.style.boxShadow = "";
+                if (_brushPrevInnerCanvas) _brushPrevInnerCanvas.style.display = "none";
+            }
             _brushPrevEl.style.left = `${cx}px`;
             _brushPrevEl.style.top = `${cy}px`;
-            _brushPrevEl.style.width = `${diameterCssPx}px`;
-            _brushPrevEl.style.height = `${diameterCssPx}px`;
+            _brushPrevEl.style.width = `${widthCssPx}px`;
+            _brushPrevEl.style.height = `${heightCssPx}px`;
+            _brushPrevEl.style.borderRadius = isBrush && brushShapeForType(brushType) === "square" ? "0" : "999px";
+            if (_brushPrevInnerCanvas && isBrush && !isSimple) {
+                const sizeContentPx = Math.max(1, getBrushSizeForPreview("brush"));
+                const aaOn = getBrushAntiAliasEnabled();
+                const stamp = getBrushStamp(brushShapeForType(brushType), sizeContentPx, colorToHex(currentColor || "#ffffff"), aaOn);
+                const rw = Math.max(1, Math.round(widthCssPx));
+                const rh = Math.max(1, Math.round(heightCssPx));
+                if (_brushPrevInnerCanvas.width !== rw) _brushPrevInnerCanvas.width = rw;
+                if (_brushPrevInnerCanvas.height !== rh) _brushPrevInnerCanvas.height = rh;
+                const pctx = _brushPrevInnerCanvas.getContext("2d");
+                pctx.clearRect(0, 0, rw, rh);
+                pctx.imageSmoothingEnabled = !!aaOn;
+                pctx.globalAlpha = 1;
+                pctx.drawImage(stamp.canvas, 0, 0, stamp.w, stamp.h, 0, 0, rw, rh);
+            }
             _brushPrevEl.style.display = "block";
         }
         function framesToSF(f) {
@@ -4409,28 +4477,113 @@
             return stabilizedPt;
         }
 
-        function getBrushPath(px, py, s) {
-            let brushPath = new Path2D();
-            switch (brushType) {
-                case "circle":
-                    brushPath.ellipse(px + s/2, py + s/2, s, s, 0, 0, 6.28);
-                break;
-                case "oval":
-                    brushPath.ellipse(px + s/2, py + s/2, s, s/3, 0, 0, 6.28);
-                break;
-                case "oval-vertical":
-                    brushPath.ellipse(px + s/2, py + s/2, s/3, s, 0, 0, 6.28);
-                break;
-                case "square":
-                    brushPath.rect(px, py, s, s);
-                break;
-            }
-            brushPath.closePath();
-            return brushPath;
+        const _brushMaskCache = new Map();
+        const _brushStampCache = new Map();
+        function brushMaskCacheKey(shape, size, aaOn) {
+            return `${shape}|${size}|${aaOn ? 1 : 0}`;
         }
+        function brushStampCacheKey(shape, size, color, aaOn) {
+            return `${shape}|${size}|${aaOn ? 1 : 0}|${color}`;
+        }
+        function getBrushMask(shapeRaw, sizeRaw, aaOn) {
+            const shape = brushShapeForType(shapeRaw);
+            const size = Math.max(1, Math.round(sizeRaw || 1));
+            const key = brushMaskCacheKey(shape, size, aaOn);
+            const cached = _brushMaskCache.get(key);
+            if (cached) return cached;
 
+            const dim = brushShapeDimensions(shape, size);
+            const w = dim.w;
+            const h = dim.h;
+            const cx = w / 2;
+            const cy = h / 2;
+            const rx = Math.max(0.5, w / 2);
+            const ry = Math.max(0.5, h / 2);
+
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d", {
+                willReadFrequently: true
+            });
+
+            if (aaOn) {
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = "#fff";
+                if (shape === "square") {
+                    ctx.fillRect(0, 0, w, h);
+                } else {
+                    ctx.beginPath();
+                    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else {
+                const img = ctx.createImageData(w, h);
+                const d = img.data;
+                for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                        let inside = false;
+                        if (shape === "square") {
+                            inside = true;
+                        } else {
+                            const nx = ((x + .5) - cx) / rx;
+                            const ny = ((y + .5) - cy) / ry;
+                            inside = nx * nx + ny * ny <= 1;
+                        }
+                        if (!inside) continue;
+                        const i = (y * w + x) * 4;
+                        d[i + 0] = 255;
+                        d[i + 1] = 255;
+                        d[i + 2] = 255;
+                        d[i + 3] = 255;
+                    }
+                }
+                ctx.putImageData(img, 0, 0);
+            }
+
+            const out = {
+                canvas: canvas,
+                w: w,
+                h: h,
+                ox: Math.floor(w / 2),
+                oy: Math.floor(h / 2)
+            };
+            _brushMaskCache.set(key, out);
+            return out;
+        }
+        function getBrushStamp(shapeRaw, sizeRaw, colorRaw, aaOn) {
+            const shape = brushShapeForType(shapeRaw);
+            const size = Math.max(1, Math.round(sizeRaw || 1));
+            const color = colorToHex(colorRaw || "#000000");
+            const key = brushStampCacheKey(shape, size, color, aaOn);
+            const cached = _brushStampCache.get(key);
+            if (cached) return cached;
+
+            const mask = getBrushMask(shape, size, aaOn);
+            const canvas = document.createElement("canvas");
+            canvas.width = mask.w;
+            canvas.height = mask.h;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, mask.w, mask.h);
+            ctx.globalCompositeOperation = "destination-in";
+            ctx.drawImage(mask.canvas, 0, 0);
+            ctx.globalCompositeOperation = "source-over";
+
+            const out = {
+                canvas: canvas,
+                w: mask.w,
+                h: mask.h,
+                ox: mask.ox,
+                oy: mask.oy
+            };
+            _brushStampCache.set(key, out);
+            return out;
+        }
         function stampLine(ctx, x0, y0, x1, y1, size, color, alpha = 1) { //this draws the pencil
             const s = Math.max(1, Math.round(size));
+            const aaOn = getBrushAntiAliasEnabled();
+            const stamp = getBrushStamp(brushType, s, color, aaOn);
             const dx = x1 - x0, dy = y1 - y0;
             const dist = Math.hypot(dx, dy);
             const step = Math.max(1, s * .5);
@@ -4441,9 +4594,9 @@
             ctx.globalAlpha = alpha;
             ctx.fillStyle = color;
             for (let i = 0; i <= n; i++) {
-                const px = Math.round(x0 + nx * i - s / 2);
-                const py = Math.round(y0 + ny * i - s / 2);
-                ctx.fill(getBrushPath(px, py, s));
+                const px = Math.round(x0 + nx * i - stamp.ox);
+                const py = Math.round(y0 + ny * i - stamp.oy);
+                ctx.drawImage(stamp.canvas, px, py);
             }
             try {
                 markGlobalHistoryDirty();
@@ -5493,34 +5646,10 @@
             markGlobalHistoryDirty();
             markGlobalHistoryDirty();
             if (tool === "brush") {
-                if (activeLayer === LAYER.LINE) {
-                    const pressureSize = usePressureSize ? brushSize * p : brushSize;
-                    const size = e?.pointerType === "pen" && usePressureTilt ? pressureSize * (1 + t * .75) : pressureSize;
-                    const alpha = usePressureOpacity ? p : 1;
-                    stampLine(ctx, x, y, x + .01, y + .01, size, currentColor, alpha);
-                } else {
-                    if (antiAlias) {
-                        ctx.save();
-                        ctx.lineCap = "round";
-                        ctx.lineJoin = "round";
-                        ctx.globalCompositeOperation = "source-over";
-                        ctx.strokeStyle = currentColor;
-                        ctx.globalAlpha = usePressureOpacity ? p : 1;
-                        const pressureSize = usePressureSize ? brushSize * p : brushSize;
-                        const size = e?.pointerType === "pen" && usePressureTilt ? pressureSize * (1 + t * .75) : pressureSize;
-                        ctx.lineWidth = Math.max(.5, size);
-                        ctx.beginPath();
-                        ctx.moveTo(x, y);
-                        ctx.lineTo(x + .01, y + .01);
-                        ctx.stroke();
-                        ctx.restore();
-                    } else {
-                        const pressureSize = usePressureSize ? brushSize * p : brushSize;
-                        const size = e?.pointerType === "pen" && usePressureTilt ? pressureSize * (1 + t * .75) : pressureSize;
-                        const alpha = usePressureOpacity ? p : 1;
-                        stampLine(ctx, x, y, x + .01, y + .01, size, currentColor, alpha);
-                    }
-                }
+                const pressureSize = usePressureSize ? brushSize * p : brushSize;
+                const size = e?.pointerType === "pen" && usePressureTilt ? pressureSize * (1 + t * .75) : pressureSize;
+                const alpha = usePressureOpacity ? p : 1;
+                stampLine(ctx, x, y, x + .01, y + .01, size, currentColor, alpha);
             } else if (tool === "eraser") {
                 ctx.save();
                 ctx.globalCompositeOperation = "destination-out";
@@ -5605,34 +5734,10 @@
             const t = usePressureTilt ? tiltAmount(e) : 0;
             markGlobalHistoryDirty();
             if (tool === "brush") {
-                if (activeLayer === LAYER.LINE) {
-                    const pressureSize = usePressureSize ? brushSize * p : brushSize;
-                    const size = e?.pointerType === "pen" && usePressureTilt ? pressureSize * (1 + t * .75) : pressureSize;
-                    const alpha = usePressureOpacity ? p : 1;
-                    stampLine(ctx, lastPt.x, lastPt.y, x, y, size, currentColor, alpha);
-                } else {
-                    if (antiAlias) {
-                        ctx.save();
-                        ctx.lineCap = "round";
-                        ctx.lineJoin = "round";
-                        ctx.globalCompositeOperation = "source-over";
-                        ctx.strokeStyle = currentColor;
-                        ctx.globalAlpha = usePressureOpacity ? p : 1;
-                        const pressureSize = usePressureSize ? brushSize * p : brushSize;
-                        const size = e?.pointerType === "pen" && usePressureTilt ? pressureSize * (1 + t * .75) : pressureSize;
-                        ctx.lineWidth = Math.max(.5, size);
-                        ctx.beginPath();
-                        ctx.moveTo(lastPt.x, lastPt.y);
-                        ctx.lineTo(x, y);
-                        ctx.stroke();
-                        ctx.restore();
-                    } else {
-                        const pressureSize = usePressureSize ? brushSize * p : brushSize;
-                        const size = e?.pointerType === "pen" && usePressureTilt ? pressureSize * (1 + t * .75) : pressureSize;
-                        const alpha = usePressureOpacity ? p : 1;
-                        stampLine(ctx, lastPt.x, lastPt.y, x, y, size, currentColor, alpha);
-                    }
-                }
+                const pressureSize = usePressureSize ? brushSize * p : brushSize;
+                const size = e?.pointerType === "pen" && usePressureTilt ? pressureSize * (1 + t * .75) : pressureSize;
+                const alpha = usePressureOpacity ? p : 1;
+                stampLine(ctx, lastPt.x, lastPt.y, x, y, size, currentColor, alpha);
             } else if (tool === "eraser") {
                 ctx.save();
                 ctx.globalCompositeOperation = "destination-out";
