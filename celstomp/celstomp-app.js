@@ -344,6 +344,111 @@
             popup.setAttribute("aria-hidden", "true");
             popup.classList.remove("open");
         }
+        function menuFocusableItems(panel) {
+            if (!panel) return [];
+            return Array.from(panel.querySelectorAll("button:not([disabled]), select, input[type='checkbox']")).filter(el => !el.hidden);
+        }
+        function closeExportSubmenu() {
+            if (menuExportPanel) menuExportPanel.hidden = true;
+            if (menuExportBtn) menuExportBtn.setAttribute("aria-expanded", "false");
+        }
+        function openExportSubmenu() {
+            if (!menuExportPanel || !menuExportBtn) return;
+            menuExportPanel.hidden = false;
+            menuExportBtn.setAttribute("aria-expanded", "true");
+        }
+        function closeTopMenus() {
+            [ [ menuFileBtn, menuFilePanel ], [ menuEditBtn, menuEditPanel ], [ menuToolBehaviorBtn, menuToolBehaviorPanel ] ].forEach(([btn, panel]) => {
+                if (panel) panel.hidden = true;
+                btn?.setAttribute("aria-expanded", "false");
+            });
+            closeExportSubmenu();
+        }
+        function openTopMenu(btn, panel) {
+            if (!btn || !panel) return;
+            closeTopMenus();
+            panel.hidden = false;
+            btn.setAttribute("aria-expanded", "true");
+            const first = menuFocusableItems(panel)[0];
+            if (first && window.matchMedia("(min-width: 721px)").matches) {
+                try {
+                    first.focus({
+                        preventScroll: true
+                    });
+                } catch {}
+            }
+        }
+        function wireTopMenus() {
+            if (!topMenuBar || topMenuBar.dataset.wiredMenus === "1") return;
+            topMenuBar.dataset.wiredMenus = "1";
+            const triggerPairs = [ [ menuFileBtn, menuFilePanel ], [ menuEditBtn, menuEditPanel ], [ menuToolBehaviorBtn, menuToolBehaviorPanel ] ];
+            triggerPairs.forEach(([btn, panel]) => {
+                if (!btn || !panel) return;
+                btn.addEventListener("click", e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const open = !panel.hidden;
+                    if (open) closeTopMenus(); else openTopMenu(btn, panel);
+                });
+                btn.addEventListener("keydown", e => {
+                    if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openTopMenu(btn, panel);
+                    }
+                });
+            });
+            menuExportBtn?.addEventListener("click", e => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (menuExportPanel?.hidden) openExportSubmenu(); else closeExportSubmenu();
+            });
+            menuExportBtn?.addEventListener("keydown", e => {
+                if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openExportSubmenu();
+                    const first = menuFocusableItems(menuExportPanel)[0];
+                    first?.focus?.();
+                }
+            });
+            const wirePanelKeys = panel => {
+                panel?.addEventListener("keydown", e => {
+                    const items = menuFocusableItems(panel);
+                    if (!items.length) return;
+                    const idx = Math.max(0, items.indexOf(document.activeElement));
+                    if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        items[(idx + 1) % items.length].focus();
+                    } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        items[(idx - 1 + items.length) % items.length].focus();
+                    } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        closeTopMenus();
+                    } else if (e.key === "ArrowLeft" && panel === menuExportPanel) {
+                        e.preventDefault();
+                        closeExportSubmenu();
+                        menuExportBtn?.focus?.();
+                    }
+                });
+            };
+            wirePanelKeys(menuFilePanel);
+            wirePanelKeys(menuEditPanel);
+            wirePanelKeys(menuToolBehaviorPanel);
+            wirePanelKeys(menuExportPanel);
+            document.addEventListener("mousedown", e => {
+                if (!topMenuBar.contains(e.target)) closeTopMenus();
+            });
+            document.addEventListener("keydown", e => {
+                if (e.key === "Escape") closeTopMenus();
+            });
+            [ menuFilePanel, menuEditPanel, menuToolBehaviorPanel, menuExportPanel ].forEach(panel => {
+                panel?.addEventListener("click", e => {
+                    if (e.target.closest("button") && e.target.id !== "menuExportBtn") {
+                        closeTopMenus();
+                    }
+                });
+            });
+        }
         toolSeg.addEventListener("contextmenu", e => {
             const lab = e.target.closest("label[data-tool]");
             if (!lab) return;
@@ -382,6 +487,28 @@
         const clearAllModalBackdrop = document.getElementById("clearAllModalBackdrop");
         const clearAllConfirmBtn = document.getElementById("clearAllConfirmBtn");
         const clearAllCancelBtn = document.getElementById("clearAllCancelBtn");
+        const exportGIFBtn = document.getElementById("exportGIFBtn");
+        const exportImgSeqModal = document.getElementById("exportImgSeqModal");
+        const exportImgSeqModalBackdrop = document.getElementById("exportImgSeqModalBackdrop");
+        const exportImgSeqTransparencyToggle = document.getElementById("exportImgSeqTransparency");
+        const exportImgSeqConfirmBtn = document.getElementById("exportImgSeqConfirmBtn");
+        const exportImgSeqCancelBtn = document.getElementById("exportImgSeqCancelBtn");
+        const exportGifModal = document.getElementById("exportGifModal");
+        const exportGifModalBackdrop = document.getElementById("exportGifModalBackdrop");
+        const exportGifFpsInput = document.getElementById("exportGifFps");
+        const exportGifTransparencyToggle = document.getElementById("exportGifTransparency");
+        const exportGifLoopToggle = document.getElementById("exportGifLoop");
+        const exportGifConfirmBtn = document.getElementById("exportGifConfirmBtn");
+        const exportGifCancelBtn = document.getElementById("exportGifCancelBtn");
+        const topMenuBar = document.getElementById("topMenuBar");
+        const menuFileBtn = document.getElementById("menuFileBtn");
+        const menuFilePanel = document.getElementById("menuFilePanel");
+        const menuEditBtn = document.getElementById("menuEditBtn");
+        const menuEditPanel = document.getElementById("menuEditPanel");
+        const menuToolBehaviorBtn = document.getElementById("menuToolBehaviorBtn");
+        const menuToolBehaviorPanel = document.getElementById("menuToolBehaviorPanel");
+        const menuExportBtn = document.getElementById("menuExportBtn");
+        const menuExportPanel = document.getElementById("menuExportPanel");
         const stabilizationSelect = $("stabilizationLevel");
         const penControls = $("penControls");
         const pressureSizeToggle = $("pressureSize") || $("usePressureSize");
@@ -3595,6 +3722,78 @@
                 clearAllConfirmBtn.addEventListener("click", onConfirm);
                 clearAllCancelBtn.addEventListener("click", onCancel);
                 clearAllModalBackdrop.addEventListener("click", onCancel);
+                document.addEventListener("keydown", onEsc);
+            });
+        }
+        function askImgSeqExportOptions() {
+            return new Promise(resolve => {
+                if (!exportImgSeqModal || !exportImgSeqModalBackdrop || !exportImgSeqConfirmBtn || !exportImgSeqCancelBtn) {
+                    resolve({
+                        transparent: false
+                    });
+                    return;
+                }
+                exportImgSeqModal.hidden = false;
+                exportImgSeqModalBackdrop.hidden = false;
+                const cleanup = value => {
+                    exportImgSeqModal.hidden = true;
+                    exportImgSeqModalBackdrop.hidden = true;
+                    exportImgSeqConfirmBtn.removeEventListener("click", onConfirm);
+                    exportImgSeqCancelBtn.removeEventListener("click", onCancel);
+                    exportImgSeqModalBackdrop.removeEventListener("click", onCancel);
+                    document.removeEventListener("keydown", onEsc);
+                    resolve(value);
+                };
+                const onConfirm = () => cleanup({
+                    transparent: !!exportImgSeqTransparencyToggle?.checked
+                });
+                const onCancel = () => cleanup(null);
+                const onEsc = e => {
+                    if (e.key === "Escape") cleanup(null);
+                };
+                exportImgSeqConfirmBtn.addEventListener("click", onConfirm);
+                exportImgSeqCancelBtn.addEventListener("click", onCancel);
+                exportImgSeqModalBackdrop.addEventListener("click", onCancel);
+                document.addEventListener("keydown", onEsc);
+            });
+        }
+        function askGifExportOptions() {
+            return new Promise(resolve => {
+                if (!exportGifModal || !exportGifModalBackdrop || !exportGifConfirmBtn || !exportGifCancelBtn) {
+                    resolve({
+                        fps: Math.max(1, Math.min(60, fps || 12)),
+                        transparent: false,
+                        loop: true
+                    });
+                    return;
+                }
+                safeSetValue(exportGifFpsInput, Math.max(1, Math.min(60, fps || 12)));
+                exportGifModal.hidden = false;
+                exportGifModalBackdrop.hidden = false;
+                const cleanup = value => {
+                    exportGifModal.hidden = true;
+                    exportGifModalBackdrop.hidden = true;
+                    exportGifConfirmBtn.removeEventListener("click", onConfirm);
+                    exportGifCancelBtn.removeEventListener("click", onCancel);
+                    exportGifModalBackdrop.removeEventListener("click", onCancel);
+                    document.removeEventListener("keydown", onEsc);
+                    resolve(value);
+                };
+                const onConfirm = () => {
+                    const f = Math.max(1, Math.min(60, parseInt(exportGifFpsInput?.value, 10) || fps || 12));
+                    cleanup({
+                        fps: f,
+                        transparent: !!exportGifTransparencyToggle?.checked,
+                        loop: !!exportGifLoopToggle?.checked
+                    });
+                };
+                const onCancel = () => cleanup(null);
+                const onEsc = e => {
+                    if (e.key === "Escape") cleanup(null);
+                };
+                exportGifConfirmBtn.addEventListener("click", onConfirm);
+                exportGifCancelBtn.addEventListener("click", onCancel);
+                exportGifModalBackdrop.addEventListener("click", onCancel);
                 document.addEventListener("keydown", onEsc);
             });
         }
@@ -7342,15 +7541,7 @@
             return null;
         }
         function initImgSeqExportWiring() {
-            if (!exportImgSeqBtn) {
-                console.warn("[celstomp] exportImgSeqBtn not found (id exportImgSeqBtn/exportImgSeq).");
-                return;
-            }
-            if (!imgSeqExporter) {
-                console.warn("[celstomp] IMG sequence exporter module missing.");
-                return;
-            }
-            imgSeqExporter.wire(exportImgSeqBtn);
+            return;
         }
         async function onExportImgSeqClick(e) {
             e.preventDefault();
@@ -7707,6 +7898,101 @@
             const a = document.createElement("a");
             a.href = url;
             a.download = `celstomp_clip_${fps}fps_${framesToSF(clipStart).s}-${framesToSF(clipEnd).s}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+        function buildGifPalette() {
+            const out = [ 0x000000 ];
+            for (let r = 0; r < 6; r++) {
+                for (let g = 0; g < 6; g++) {
+                    for (let b = 0; b < 6; b++) {
+                        out.push(r * 51 << 16 | g * 51 << 8 | b * 51);
+                    }
+                }
+            }
+            for (let i = 0; out.length < 256; i++) {
+                const v = Math.round(i / 39 * 255);
+                out.push(v << 16 | v << 8 | v);
+            }
+            return out;
+        }
+        function rgbaToGifIndex(r, g, b) {
+            const ri = Math.max(0, Math.min(5, Math.round(r / 51)));
+            const gi = Math.max(0, Math.min(5, Math.round(g / 51)));
+            const bi = Math.max(0, Math.min(5, Math.round(b / 51)));
+            return 1 + ri * 36 + gi * 6 + bi;
+        }
+        function imageDataToGifIndexes(data, transparent) {
+            const out = new Uint8Array(data.length / 4);
+            for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+                const a = data[i + 3];
+                if (transparent && a < 16) {
+                    out[p] = 0;
+                    continue;
+                }
+                out[p] = rgbaToGifIndex(data[i], data[i + 1], data[i + 2]);
+            }
+            return out;
+        }
+        async function exportGif({fps: fpsLocal, transparent: transparent, loop: loop}) {
+            if (typeof GifWriter !== "function") {
+                alert("GIF export unavailable: encoder library not loaded.");
+                return;
+            }
+            const start = clipStart;
+            const end = clipEnd;
+            const count = Math.max(0, end - start + 1);
+            if (!count) {
+                alert("No frames to export.");
+                return;
+            }
+            const totalPixels = contentW * contentH * count;
+            if (totalPixels > 4e7) {
+                alert("GIF export range is too large. Shorten clip range or canvas size.");
+                return;
+            }
+            const delayCs = Math.max(1, Math.round(100 / Math.max(1, fpsLocal || fps || 12)));
+            const estSize = Math.max(1048576, Math.ceil(totalPixels * 1.4 + count * 256));
+            const out = new Uint8Array(estSize);
+            const palette = buildGifPalette();
+            const writer = new GifWriter(out, contentW, contentH, {
+                palette: palette,
+                loop: loop ? 0 : null
+            });
+            const cc = document.createElement("canvas");
+            cc.width = contentW;
+            cc.height = contentH;
+            const cctx = cc.getContext("2d", {
+                willReadFrequently: true,
+                alpha: true
+            });
+            cctx.imageSmoothingEnabled = !!antiAlias;
+            await withExportOverridesAsync(async () => {
+                for (let i = start; i <= end; i++) {
+                    await sleep(0);
+                    await drawFrameTo(cctx, i, {
+                        forceHoldOff: true,
+                        transparent: transparent
+                    });
+                    const img = cctx.getImageData(0, 0, contentW, contentH);
+                    const indexed = imageDataToGifIndexes(img.data, transparent);
+                    writer.addFrame(0, 0, contentW, contentH, indexed, {
+                        delay: delayCs,
+                        disposal: 1,
+                        transparent: transparent ? 0 : null
+                    });
+                }
+            });
+            const len = writer.end();
+            const blob = new Blob([ out.slice(0, len) ], {
+                type: "image/gif"
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `celstomp_clip_${fpsLocal}fps_${framesToSF(start).s}-${framesToSF(end).s}.gif`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -9225,10 +9511,7 @@
             handle.addEventListener("pointercancel", end);
         }
         wireIslandResize();
-        infoBtn?.addEventListener("click", () => {
-            if (!infoPanel) return;
-            infoPanel.style.display = infoPanel.style.display === "block" ? "none" : "block";
-        });
+        wireTopMenus();
         const layerSeg = $("layerSeg");
         layerSeg?.addEventListener("change", () => {
             wireLayerVisButtons();
@@ -9458,7 +9741,39 @@
             }
             await exportClip(mime, "mp4");
         });
-        initImgSeqExportWiring();
+        exportImgSeqBtn?.addEventListener("click", async e => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!imgSeqExporter?.handleClick) {
+                alert("IMG sequence exporter is unavailable.");
+                return;
+            }
+            const options = await askImgSeqExportOptions();
+            if (!options) return;
+            await imgSeqExporter.handleClick({
+                preventDefault: () => {},
+                stopPropagation: () => {},
+                altKey: !!options.transparent,
+                shiftKey: false
+            }, exportImgSeqBtn);
+        });
+        exportGIFBtn?.addEventListener("click", async e => {
+            e.preventDefault();
+            e.stopPropagation();
+            const options = await askGifExportOptions();
+            if (!options) return;
+            const oldTxt = exportGIFBtn.textContent;
+            exportGIFBtn.disabled = true;
+            exportGIFBtn.textContent = "Exporting...";
+            try {
+                await exportGif(options);
+            } catch (err) {
+                alert("GIF export failed: " + (err?.message || err));
+            } finally {
+                exportGIFBtn.disabled = false;
+                exportGIFBtn.textContent = oldTxt;
+            }
+        });
         function initSaveLoadWiring() {
             if (window.__CELSTOMP_SAVELOAD_WIRED__) return;
             window.__CELSTOMP_SAVELOAD_WIRED__ = true;

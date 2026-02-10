@@ -1,6 +1,61 @@
 document.getElementById('part-header').innerHTML = `
   <header class="top">
-    <div class="topSlot left"></div>
+    <div class="topSlot left">
+      <div id="topMenuBar" class="topMenuBar" role="menubar" aria-label="Main menu">
+        <div class="topMenuWrap" data-menu="file">
+          <button id="menuFileBtn" class="topBtn topMenuTrigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menuFilePanel">File</button>
+          <div id="menuFilePanel" class="topMenuPanel" role="menu" hidden>
+            <button id="saveProj" class="topMenuItem" type="button" role="menuitem">Save</button>
+            <button id="loadProj" class="topMenuItem" type="button" role="menuitem">Load</button>
+            <button id="restoreAutosave" class="topMenuItem" type="button" role="menuitem" title="Restore latest autosaved draft" disabled>Restore Draft</button>
+            <div class="topMenuSep" role="separator"></div>
+            <div class="topSubmenuWrap">
+              <button id="menuExportBtn" class="topMenuItem topSubmenuTrigger" type="button" role="menuitem" aria-haspopup="true" aria-expanded="false" aria-controls="menuExportPanel">Export</button>
+              <div id="menuExportPanel" class="topSubmenuPanel" role="menu" hidden>
+                <button id="exportMP4" class="topMenuItem" type="button" role="menuitem">Export MP4</button>
+                <button id="exportImgSeqBtn" class="topMenuItem" type="button" role="menuitem">Export Img Seq</button>
+                <button id="exportGIFBtn" class="topMenuItem" type="button" role="menuitem">Export GIF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="topMenuWrap" data-menu="edit">
+          <button id="menuEditBtn" class="topBtn topMenuTrigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menuEditPanel">Edit</button>
+          <div id="menuEditPanel" class="topMenuPanel" role="menu" hidden>
+            <button id="clearAllBtn" class="topMenuItem danger" type="button" role="menuitem">Clear All</button>
+          </div>
+        </div>
+
+        <div class="topMenuWrap" data-menu="tool-behavior">
+          <button id="menuToolBehaviorBtn" class="topBtn topMenuTrigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menuToolBehaviorPanel">Tool Behavior</button>
+          <div id="menuToolBehaviorPanel" class="topMenuPanel topMenuPanelWide" role="menu" hidden>
+            <label class="topMenuSelectRow" for="stabilizationLevel">
+              <span>Stabilization Level</span>
+              <select id="stabilizationLevel">
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5" selected>5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+              </select>
+            </label>
+            <div id="penControls" class="topMenuPenControls" hidden>
+              <label class="chip"><input id="pressureSize" type="checkbox" checked /> Pen pressure size</label>
+              <label class="chip"><input id="pressureOpacity" type="checkbox" /> Pen pressure opacity</label>
+              <label class="chip"><input id="pressureTilt" type="checkbox" /> Pen tilt/rotation</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="saveStateBadge" class="saveStateBadge saveStateChip" role="status" aria-live="polite">Saved</div>
+    </div>
 
     <div class="brand">
       <span class="brandIcon brandIconL" aria-hidden="true"></span>
