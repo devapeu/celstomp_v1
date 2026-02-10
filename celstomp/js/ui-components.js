@@ -64,7 +64,6 @@
             lbl.htmlFor = t.id;
             lbl.dataset.brushShape = t.val;
             lbl.setAttribute('aria-label', t.label);
-            lbl.title = t.label;
             lbl.textContent = '';
 
             frag.appendChild(inp);

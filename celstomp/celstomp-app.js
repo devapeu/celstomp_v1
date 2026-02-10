@@ -1476,39 +1476,108 @@
             if (!brushShapeSeg || !brushShapeTooltip || brushShapeSeg.dataset.tooltipWired === "1") return;
             brushShapeSeg.dataset.tooltipWired = "1";
             let pressTimer = 0;
+            let activeTip = null;
+            const GAP = 8;
+            const isHoverCapable = () => window.matchMedia("(hover: hover)").matches;
+            const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
             const hideTip = () => {
+                activeTip = null;
                 brushShapeTooltip.hidden = true;
                 brushShapeTooltip.textContent = "";
             };
-            const showTip = (label, x, y) => {
-                const text = label?.title || label?.getAttribute("aria-label") || "";
+            const getBasePoint = state => {
+                const r = state.label.getBoundingClientRect();
+                if (state.mode === "press") {
+                    return {
+                        x: r.right,
+                        y: r.top + r.height / 2,
+                        rect: r
+                    };
+                }
+                const x = Number.isFinite(state.clientX) ? state.clientX : r.left + r.width / 2;
+                const y = Number.isFinite(state.clientY) ? state.clientY : r.top + r.height / 2;
+                return {
+                    x: x,
+                    y: y,
+                    rect: r
+                };
+            };
+            const positionTip = state => {
+                if (!state || brushShapeTooltip.hidden) return;
+                const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+                const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+                const base = getBasePoint(state);
+                const r = base.rect;
+                const tipRect = brushShapeTooltip.getBoundingClientRect();
+                let left = base.x + GAP;
+                let top = base.y + GAP;
+                const canRight = left + tipRect.width <= vw - GAP;
+                const canBottom = top + tipRect.height <= vh - GAP;
+                if (!canRight) left = base.x - tipRect.width - GAP;
+                if (!canBottom) top = base.y - tipRect.height - GAP;
+                if (left < GAP) {
+                    left = r.left + (r.width - tipRect.width) / 2;
+                }
+                if (top < GAP) {
+                    top = r.bottom + GAP;
+                }
+                if (top + tipRect.height > vh - GAP) {
+                    top = r.top - tipRect.height - GAP;
+                }
+                brushShapeTooltip.style.left = `${Math.round(clamp(left, GAP, Math.max(GAP, vw - tipRect.width - GAP)))}px`;
+                brushShapeTooltip.style.top = `${Math.round(clamp(top, GAP, Math.max(GAP, vh - tipRect.height - GAP)))}px`;
+            };
+            const showTip = (label, x, y, mode = "hover") => {
+                const text = label?.title || "";
                 if (!text) return;
+                activeTip = {
+                    label: label,
+                    clientX: x,
+                    clientY: y,
+                    mode: mode
+                };
                 brushShapeTooltip.textContent = text;
-                brushShapeTooltip.style.left = `${Math.round(x + 10)}px`;
-                brushShapeTooltip.style.top = `${Math.round(y + 10)}px`;
                 brushShapeTooltip.hidden = false;
+                positionTip(activeTip);
             };
             brushShapeSeg.addEventListener("pointerdown", e => {
                 const label = e.target?.closest?.("label[data-brush-shape]");
                 if (!label) return;
                 clearTimeout(pressTimer);
-                pressTimer = window.setTimeout(() => showTip(label, e.clientX, e.clientY), 500);
+                pressTimer = window.setTimeout(() => showTip(label, e.clientX, e.clientY, "press"), 500);
             });
             ["pointerup", "pointercancel", "pointerleave", "pointermove"].forEach(evt => {
-                brushShapeSeg.addEventListener(evt, () => {
+                brushShapeSeg.addEventListener(evt, e => {
                     clearTimeout(pressTimer);
+                    if (evt === "pointermove" && activeTip && activeTip.mode === "hover") {
+                        const label = e.target?.closest?.("label[data-brush-shape]");
+                        if (!label) return;
+                        activeTip.label = label;
+                        activeTip.clientX = e.clientX;
+                        activeTip.clientY = e.clientY;
+                        positionTip(activeTip);
+                        return;
+                    }
                     if (evt !== "pointermove") hideTip();
                 }, {
                     passive: true
                 });
             });
             brushShapeSeg.addEventListener("mouseover", e => {
-                if (!window.matchMedia("(hover: hover)").matches) return;
+                if (!isHoverCapable()) return;
                 const label = e.target?.closest?.("label[data-brush-shape]");
                 if (!label) return;
-                showTip(label, e.clientX, e.clientY);
+                showTip(label, e.clientX, e.clientY, "hover");
             });
             brushShapeSeg.addEventListener("mouseout", hideTip);
+            const onViewportMove = () => {
+                if (!activeTip || brushShapeTooltip.hidden) return;
+                positionTip(activeTip);
+            };
+            window.addEventListener("scroll", onViewportMove, true);
+            window.addEventListener("resize", onViewportMove, {
+                passive: true
+            });
         }
         function initBrushCursorPreview(inputCanvasEl) {
             _brushPrevCanvas = inputCanvasEl;

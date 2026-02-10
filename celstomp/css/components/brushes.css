@@ -92,8 +92,8 @@
   content: "";
   width: 14px;
   height: 14px;
-  border: 1px solid rgba(255,255,255,0.95);
-  background: transparent;
+  border: 0;
+  background: rgba(255,255,255,0.92);
   box-sizing: border-box;
 }
 
@@ -132,7 +132,7 @@
 }
 
 #brushShapeSeg > label[data-brush-shape="triangle"]::before{
-  border: 0;
+  background: transparent;
   width: 0;
   height: 0;
   border-left: 7px solid transparent;
