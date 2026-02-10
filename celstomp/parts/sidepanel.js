@@ -7,7 +7,6 @@ document.getElementById('part-sidepanel').innerHTML = `
         <button id="loadProj">Load</button>
         <button id="restoreAutosave" title="Restore latest autosaved draft" disabled>Restore Draft</button>
         <div id="saveStateBadge" class="saveStateBadge" role="status" aria-live="polite">Saved</div>
-        <button id="pickColorTool">Pick Color Tool</button>
         <button id="addPaletteColor">Add Color</button>
         <button id="fillCurrent">Fill current cel</button>
         <button id="fillAll">Fill all cels</button>

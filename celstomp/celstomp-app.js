@@ -319,7 +319,6 @@
         const chooseFillEraserBtn = $("chooseFillEraser");
         const chooseFillBrushBtn = $("chooseFillBrush");
         const chooseLassoFillBtn = $("chooseLassoFill");
-        const pickColorToolBtn = $("pickColorTool");
         const addPaletteColorBtn = $("addPaletteColor");
         const clearAllBtn = $("clearAllBtn");
         const paletteBar = $("paletteBar");
@@ -9286,12 +9285,6 @@
             }
             updateHUD();
             clearFx();
-        });
-        pickColorToolBtn?.addEventListener("click", () => {
-            const r = $("tool-eyedropper");
-            if (r) r.checked = true;
-            tool = "eyedropper";
-            updateHUD();
         });
         addPaletteColorBtn?.addEventListener("click", () => {
             addCurrentColorToPalette();
