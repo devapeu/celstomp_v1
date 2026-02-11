@@ -7,6 +7,16 @@ document.getElementById('part-modals').innerHTML = `
   <input id="loadFileInp" type="file" accept=".json,application/json"
     style="position:fixed; left:-9999px; width:1px; height:1px; opacity:0;" />
 
+  <div id="mobileGateBackdrop" class="modalBackdrop" hidden></div>
+  <div id="mobileGateModal" class="modalCard mobileGateCard" role="dialog" aria-modal="true" aria-labelledby="mobileGateTitle" aria-describedby="mobileGateBody" hidden>
+    <h3 id="mobileGateTitle">Use desktop or tablet for the best experience</h3>
+    <p id="mobileGateBody">This app works best on desktop and iPads/tablets. Some features may not work well on phones.</p>
+    <div class="modalActions">
+      <button id="mobileGateBackBtn" type="button" class="mobileGateSecondary">Go back</button>
+      <button id="mobileGateContinueBtn" type="button">Continue anyway</button>
+    </div>
+  </div>
+
   <div id="shortcutsModalBackdrop" class="modalBackdrop" hidden></div>
   <div id="shortcutsModal" class="modalCard" role="dialog" aria-modal="true" aria-labelledby="shortcutsModalTitle" hidden>
     <h3 id="shortcutsModalTitle">Keyboard Shortcuts</h3>

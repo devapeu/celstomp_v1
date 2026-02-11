@@ -168,6 +168,27 @@
   color: #ffb3b3;
 }
 
+.mobileGateCard{
+  width: min(92vw, 420px);
+}
+
+.mobileGateCard .modalActions{
+  justify-content: flex-end;
+}
+
+.mobileGateCard :where(button){
+  border-radius: 0;
+}
+
+.mobileGateSecondary{
+  background: transparent;
+  color: rgba(255,255,255,0.85);
+}
+
+.mobileGateSecondary:hover{
+  background: rgba(255,255,255,0.04);
+}
+
 
 /* Swatch Context Menu */
 #swatchCtxMenu{
